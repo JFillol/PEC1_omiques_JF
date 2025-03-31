@@ -30,11 +30,11 @@ L'objectiu d'aquest treball es identificar patrons en els perfils metabolics uri
 
 # MÈTODES
 
-Per a la elaboració del analisis exposant en aquest informe s'ha usat dades publicades com un article obert [@chan2015]. Les dades desconvolades i anotades es troben al [Metabolomics Workbench data repository](http://www.metabolomicsworkbench.org/), sota el Project ID PR00699. Les dades es poden accedir de forma directa via el projecte a http://dx.doi.org/DOI:10.21228/M8B10B.
+Per a la elaboració del analisis exposant en aquest informe s'ha usat dades publicades com un article obert [@Chan2015]. Les dades desconvolades i anotades es troben al [Metabolomics Workbench data repository](http://www.metabolomicsworkbench.org/), sota el Project ID PR00699. Les dades es poden accedir de forma directa via el projecte a http://dx.doi.org/DOI:10.21228/M8B10B.
 
 Aquestes dades, estan compreses per l'estudi H1-RMN dels perfis metabòlics urinaris de diferents grups de pacients amb cancer gàstric, en especific pacients amb cancer gastric (GC), pacients amb malalties gastriques benignes (BN) i pacients no afectats (HE). 
 
-Per a estudiar aquestes dades, s'ha usat el paquet Bioconductor [], del qual s'han usat els paquets *Biobase* i *SummarizedExperiment* per a la construcció d'un objecte amb la classe homonima d'aquest paquet.
+Per a estudiar aquestes dades, s'ha usat el paquet *Bioconductor* [], del qual s'han usat els paquets *Biobase* i *SummarizedExperiment* [@MO_2024]per a la construcció d'un objecte amb la classe homonima d'aquest paquet.
 
 A més a més, també s'han usat 
 
@@ -53,7 +53,15 @@ BiocManager::install("metabolomicsWorkbenchR")
 
 ## Seleccionar i descarregar el dataset
 
-El dataset que es vol usar és el que respecta al cancer gàstric, el cual es pot obtenir ja en format *SummarizedExperiment* mitjançant el paquet *metabolomicsWorkbenchR*.
+El dataset que es vol usar és el que respecta al cancer gàstric, el es carrega a partir del fitxer *xlsx* disponible en el repositori GitHub del informe.
+
+```{r, warning=FALSE}
+library(readxl)
+
+#obtenir l'estudi en questió en forma de df a partir del fitxer xlsx
+raw = read_xlsx('GastricCancer_NMR.xlsx')
+```
+
 
 
 ## Carregar i acomular les dades
@@ -66,18 +74,15 @@ Aquesta classe és una extensió de la classe base de *Bioconductor* *Expression
 
 
 ```{r, message=FALSE}
-#carregar la lliberia metabolomics Workbench R
+#carregar la lliberia metabolomics Workbench R i summarizedExperiment
 library("metabolomicsWorkbenchR")
+library('SummarizedExperiment')
 
-#obtenir l'estudi en questió en forma de SummarizedExperiment a partir del seu analyisis ID obtingut a el repositori de dades metabolomicsWorkbench
+#classificar les dades com a summarizedExperiment
+df <- SummarizedExperiment(assays = list(raw[,5:153]))
 
-dff = do_query(
-  context = 'study',
-  input_item = 'analysis_id',
-  input_value = 'AN001711',
-  output_item = 'SummarizedExperiment'
-)
-
+#afegir les metadades al element summarized experiment
+rowData(df) <- data.frame(Idx = raw[,1], SampleID = raw[,2], Sampletype = raw[,3], SampleClass = raw[,4])
 ```
 
 ## Analisis exploratori de les dades
@@ -87,7 +92,6 @@ dff = do_query(
 El primer pas doncs en l'analisis exploratori de les dades és visualitzar-les, per a coneixer'n la forma i les caracteristiques principals. El primer que cal visualitzar és l'element *SummarizedExperiment*, el cual pot poseir informació clau sobre les dades. 
 
 ```{r, warning=FALSE, message=FALSE}
-library('SummarizedExperiment')
 
 #es visualitza la informació del Summarized Experiment
 df
@@ -99,29 +103,50 @@ En aquesta sortida de consola es pot veure que la informació numèrica del assa
 #s'extreuen les dades del Summarized Experiment
 dades = assay(df)
 #es visualitza un breu resum i una breu mostra de les 5 primeres entrades de les dades
-head(dades[1:5]) %>%  kableExtra::kable()
+head(dades[1:5,1:5]) %>%  kableExtra::kable()
 summary(dades[1:5]) %>%  kableExtra::kable()
 ```
 
 En aquestes taules es poden veure les primeres entrades de les dades i un breu resum d'aquestes.
-### Convertir les dades en nombres
 
-Com es pot veure al resum de les dades, les dades estan en format *character*, es a dir, el ordinar les considera text escrit. Per a convertir aquestes dades en numeros, per a poder analitzar-les, cal aplicar la funció *as.numeric* a les dades.
+Com es pot veure a la taula de resum, alguns dels metabolits present valors no existents, **NA**. Per a filtrar els metabolits considerats com a bons doncs, es passa un control de qualitat sobre les dades.
 
-```{r}
-assay(df) <- data.frame(apply(assay(df), 2, as.numeric)) 
-summary(assay(df)[1:5]) %>%  kableExtra::kable()
+### Selecció de metabolits
+
+Per a poder treballar amb metabolits que ens aportin informació, cal que el maxim nombre de variables tinguin informació disponible per al metabolit en questió. Per a assegurar-nos d'això, s'eliminen els metabolits on els valors **NA** representen més d'un 10% dels valors totals.
+
+```{r, echo=FALSE}
+#acomular el recompte de NA a cada columna
+nacounts = colSums(is.na(dades))
+#calcular el percentatge que aixo representa del total
+napercent = nacounts/nrow(dades) * 100
+
+#seleccionar les columnes que són d'interés
+
+df_select <- df[,napercent < 10]
+
+df_select
 ```
-Com es pot veure a la sortida de consola anterior, els elements ja són numerics. Tot i aixó, l'us de la funció summary de R no és molt adhient ja que organitza els valors en columnes, el que no es coherent amb l'organització dels elements *SummarizedExperiment*, on les columnes són diferents individus.
+
+Com es pot veure a la sortida de consola on es veu el resum del nou element *SummarizedExperiment*, de les 149 variables que poseia el dataset original se'n conserven 122, sent aquestes les que els valors NA representen menys d'un 10% de les dades.
+
 
 ## PCA
 
 Per a estudiar quins dels components tenen un efecte més clar sobre la afectació o no dels pacients, es realitza un PCA sobre les dades.
 
-Per a fer-ho, es descarten les dades de la categoria **QC**, sent aquestes usades per a controls 
+Per a fer-ho, no es tenen en compte les dades de la classe **BN**, ja que inicialment es busca només la diferencia entre tumors malignes i pacients sense afectació.
+
+A més a més, les dades que falten (**NA**) es generen mitjançant un algoritme predictiu KNN amb 3 veins. Això és necessari degut a que per al analisis dels components principals no poden haver-hi elements amb valors perduts. Per a aixó, s'usa el paquet *multiUS* [@Torgo_2011].
 
 ```{r}
-PCA = prcomp()
+#seleccionar les classes HE i GC
+df_pca <- df_select[df_select@elementMetadata@listData$Class == 'HE' | df_select@elementMetadata@listData$Class == 'GC',]
+
+library(multiUS)
+
+imp <- KNNimp(t(assay(df_select)), k=3)
+
 ```
 
 
