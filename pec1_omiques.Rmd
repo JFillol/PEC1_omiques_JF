@@ -17,8 +17,9 @@ output:
     toc_depth: 3
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
 ```
 
 # ABSTRACT
@@ -33,8 +34,95 @@ Per a la elaboració del analisis exposant en aquest informe s'ha usat dades pub
 
 Aquestes dades, estan compreses per l'estudi H1-RMN dels perfis metabòlics urinaris de diferents grups de pacients amb cancer gàstric, en especific pacients amb cancer gastric (GC), pacients amb malalties gastriques benignes (BN) i pacients no afectats (HE). 
 
-Per a estudiar aquestes dades, 
+Per a estudiar aquestes dades, s'ha usat el paquet Bioconductor [], del qual s'han usat els paquets *Biobase* i *SummarizedExperiment* per a la construcció d'un objecte amb la classe homonima d'aquest paquet.
+
+A més a més, també s'han usat 
+
+```{r, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+## instalar els paquets necessaris: BiocManager, Biobase, Summarized Experiment.
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+setRepositories(ind=1:2)
+BiocManager::install("Biobase")
+BiocManager::install("SummarizedExperiment")
+BiocManager::install("metabolomicsWorkbenchR")
+```
+
 # RESULTATS
+
+## Seleccionar i descarregar el dataset
+
+El dataset que es vol usar és el que respecta al cancer gàstric, el cual es pot obtenir ja en format *SummarizedExperiment* mitjançant el paquet *metabolomicsWorkbenchR*.
+
+
+## Carregar i acomular les dades
+
+Per a carregar i acomular les dades s'usa un objecte de classe *SummarizedExperiment*. Aquesta classe s'usa per a acomular matrius rectangulars de resultats experimentals, sent possible acomular resultats de diferents experiments sempre que siguin de dimensions iguals. Cadascun dels objectes acomula observacions d'una o més mostres, a més a més de la *metadata* descriptora de les observacións (*features*) i de les mostres (*fenotips*).
+
+Un aspecte clau d'aquest tipus de classes és la capacitat de mantenir lligades les dades expimentals a les metadades, el que permet realitzar transformacions a les dades experimentals, com per exemple eliminar una *feature* o normalitzar un resultat, sense perdre les metadades que van lligades a aquestes dades expeimentals. 
+
+Aquesta classe és una extensió de la classe base de *Bioconductor* *ExpressionSet*. La principal diferencia que presenta la classe extesa sobre la original és la flexibilitat pel que respecta la formació de files, permetent la formació de files tant en elements *GRange* com sobre elements descrits per *DataFramE*s arbitraris. Això permet molta més flexibilitat en l'utilització i la fa una classe molt adecuada per a una gran varietat d'usos a la bioinformatica.
+
+
+```{r, message=FALSE}
+#carregar la lliberia metabolomics Workbench R
+library("metabolomicsWorkbenchR")
+
+#obtenir l'estudi en questió en forma de SummarizedExperiment a partir del seu analyisis ID obtingut a el repositori de dades metabolomicsWorkbench
+
+dff = do_query(
+  context = 'study',
+  input_item = 'analysis_id',
+  input_value = 'AN001711',
+  output_item = 'SummarizedExperiment'
+)
+
+```
+
+## Analisis exploratori de les dades
+
+### Visualitzar les dades
+
+El primer pas doncs en l'analisis exploratori de les dades és visualitzar-les, per a coneixer'n la forma i les caracteristiques principals. El primer que cal visualitzar és l'element *SummarizedExperiment*, el cual pot poseir informació clau sobre les dades. 
+
+```{r, warning=FALSE, message=FALSE}
+library('SummarizedExperiment')
+
+#es visualitza la informació del Summarized Experiment
+df
+```
+
+En aquesta sortida de consola es pot veure que la informació numèrica del assaig es troba dins d'un assaig sense nom. Cal doncs, accedir a aquest assaig per a visualitzar-ne les dades (només les primeres entrades) i fer-ne un breu resum.
+
+```{r}
+#s'extreuen les dades del Summarized Experiment
+dades = assay(df)
+#es visualitza un breu resum i una breu mostra de les 5 primeres entrades de les dades
+head(dades[1:5]) %>%  kableExtra::kable()
+summary(dades[1:5]) %>%  kableExtra::kable()
+```
+
+En aquestes taules es poden veure les primeres entrades de les dades i un breu resum d'aquestes.
+### Convertir les dades en nombres
+
+Com es pot veure al resum de les dades, les dades estan en format *character*, es a dir, el ordinar les considera text escrit. Per a convertir aquestes dades en numeros, per a poder analitzar-les, cal aplicar la funció *as.numeric* a les dades.
+
+```{r}
+assay(df) <- data.frame(apply(assay(df), 2, as.numeric)) 
+summary(assay(df)[1:5]) %>%  kableExtra::kable()
+```
+Com es pot veure a la sortida de consola anterior, els elements ja són numerics. Tot i aixó, l'us de la funció summary de R no és molt adhient ja que organitza els valors en columnes, el que no es coherent amb l'organització dels elements *SummarizedExperiment*, on les columnes són diferents individus.
+
+## PCA
+
+Per a estudiar quins dels components tenen un efecte més clar sobre la afectació o no dels pacients, es realitza un PCA sobre les dades.
+
+Per a fer-ho, es descarten les dades de la categoria **QC**, sent aquestes usades per a controls 
+
+```{r}
+PCA = prcomp()
+```
 
 
 # DISCUSSIÓ
