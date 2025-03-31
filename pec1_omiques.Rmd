@@ -1,0 +1,37 @@
+---
+title: "PEC1 - Analisi de Dades òmiques"
+author: "Joan Fillol Pastor"
+date: '`r format(Sys.Date(),"%e de %B, %Y")`'
+
+output:
+  html_document:
+    toc: true
+    toc_float:
+      toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+
+  pdf_document: 
+    latex_engine: lualatex
+    toc: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# ABSTRACT
+
+# OBJECTIUS
+
+# MÈTODES
+
+# RESULTATS
+
+# DISCUSSIÓ
+
+# CONCLUSIONS
+
+# REFERENCIES
