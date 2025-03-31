@@ -2,7 +2,7 @@
 title: "PEC1 - Analisi de Dades òmiques"
 author: "Joan Fillol Pastor"
 date: '`r format(Sys.Date(),"%e de %B, %Y")`'
-
+bibliography: pec1.bib
 output:
   html_document:
     toc: true
@@ -21,14 +21,21 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
 # ABSTRACT
 
 # OBJECTIUS
 
+L'objectiu d'aquest treball es identificar patrons en els perfils metabolics urinaris de pacients en cancer que no siguin presents en pacients no afectat o en afectacions benignes, els quals permetin ser una èina de diagnostic rapid per a aquesta afectació.
+
 # MÈTODES
 
+Per a la elaboració del analisis exposant en aquest informe s'ha usat dades publicades com un article obert [@chan2015]. Les dades desconvolades i anotades es troben al [Metabolomics Workbench data repository](http://www.metabolomicsworkbench.org/), sota el Project ID PR00699. Les dades es poden accedir de forma directa via el projecte a http://dx.doi.org/DOI:10.21228/M8B10B.
+
+Aquestes dades, estan compreses per l'estudi H1-RMN dels perfis metabòlics urinaris de diferents grups de pacients amb cancer gàstric, en especific pacients amb cancer gastric (GC), pacients amb malalties gastriques benignes (BN) i pacients no afectats (HE). 
+
+Per a estudiar aquestes dades, 
 # RESULTATS
+
 
 # DISCUSSIÓ
 
