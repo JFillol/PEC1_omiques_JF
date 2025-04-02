@@ -44,9 +44,9 @@ A més a més, també s'han usat
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 setRepositories(ind=1:2)
-BiocManager::install("Biobase")
-BiocManager::install("SummarizedExperiment")
-BiocManager::install("metabolomicsWorkbenchR")
+#BiocManager::install("Biobase")
+#BiocManager::install("SummarizedExperiment")
+#BiocManager::install("metabolomicsWorkbenchR")
 ```
 
 # RESULTATS
@@ -94,6 +94,7 @@ El primer pas doncs en l'analisis exploratori de les dades és visualitzar-les, 
 ```{r, warning=FALSE, message=FALSE}
 
 #es visualitza la informació del Summarized Experiment
+cat('Resum del element Summarized Experiment per a les dades inicials: \n')
 df
 ```
 
@@ -124,7 +125,7 @@ napercent = nacounts/nrow(dades) * 100
 #seleccionar les columnes que són d'interés
 
 df_select <- df[,napercent < 10]
-
+cat('Resum de les dades seleccionades: \n')
 df_select
 ```
 
@@ -133,22 +134,86 @@ Com es pot veure a la sortida de consola on es veu el resum del nou element *Sum
 
 ## PCA
 
+### Preparació de les dades per a PCA
+
 Per a estudiar quins dels components tenen un efecte més clar sobre la afectació o no dels pacients, es realitza un PCA sobre les dades.
 
-Per a fer-ho, no es tenen en compte les dades de la classe **BN**, ja que inicialment es busca només la diferencia entre tumors malignes i pacients sense afectació.
+Degut a que el PCA necessita totes les dades per a treballar, les dades que falten (**NA**) es generen mitjançant un algoritme predictiu KNN amb 3 veins. Això és necessari degut a que per al analisis dels components principals no poden haver-hi elements amb valors perduts. Per a aixó, s'usa el paquet *multiUS* [@Torgo_2011].
 
-A més a més, les dades que falten (**NA**) es generen mitjançant un algoritme predictiu KNN amb 3 veins. Això és necessari degut a que per al analisis dels components principals no poden haver-hi elements amb valors perduts. Per a aixó, s'usa el paquet *multiUS* [@Torgo_2011].
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+#imprimir el nombre de NA a les dades sense imputar
 
-```{r}
-#seleccionar les classes HE i GC
-df_pca <- df_select[df_select@elementMetadata@listData$Class == 'HE' | df_select@elementMetadata@listData$Class == 'GC',]
-
+cat("El numero de valors NA al dataset filtrat és de: ", 
+    sum(is.na(assay(df_select))))
+#carregar lliberira multiUS
 library(multiUS)
 
+#imputar els valors perduts amb un knn amb k = 3
 imp <- KNNimp(t(assay(df_select)), k=3)
+
+#acomules les metadades del assay primer
+
+metadataselect <- rowData(df_select)
+
+#construir un nou summarized experiment amb la metadata i les dades imputades
+df_imp <- SummarizedExperiment(assays = list(t(imp)))
+
+#afegir les metadades al element summarized experiment
+rowData(df_imp) <- metadataselect
+
+#seleccionar les classes HE i GC
+df_pca <- df_imp
+#imprimir el nombre de NA a les dades imputades
+cat("\nEl numero de valors NA al dataset imputat és de: ", 
+    sum(is.na(assay(df_imp))))
+```
+Com es pot veure a la sortida de consola, imputar el dataset permet eliminar els valors NA de les dades. Això és necessari per a realitzar el PCA.
+
+Per al PCA, també es important nomralitzar les dades, ja que el PCA és un exercici de maximització de la variança. Sense normalització, el PCA seleccionaria les variables amb mes variança interna, no aquelles que represent de veritat la variació del resutat.
+
+```{r, echo=FALSE}
+#normalitzar les dades de df_pca i acomular-les en una altra variable
+df_pca_norm <- df_pca
+assay(df_pca_norm) <- scale(assay(df_pca))
+```
+
+### Realització del PCA
+
+Amb les dades preparades, es pot realitzar el PCA. Per a visualitzar-ne els resultats, s'usa el paquet *'factoextra'*[@KM_2020].
+
+```{r}
+#realitzar el PCA
+pca <- princomp((assay(df_pca_norm)))
 
 ```
 
+
+```{r, echo=FALSE}
+library(factoextra)
+fviz_eig(pca, addlabels = TRUE)
+
+
+```
+En el grafic *Scree* resultant del PCA es pot veure com el primer factor representa més del 25% de la variació de les dades, el que aporta informació important. Juntament amb el segon factor, aporten més del 35% de la informació.
+
+El seguent pas es analitzar com estan organitzats aquests factors.
+
+```{r}
+fviz_contrib(pca, choice = "var", axes = 1, top = 10)
+fviz_contrib(pca, choice = "var", axes = 2, top = 10)
+
+```
+En aquests dos gràfics es pot veure les 10 variables que més influeixen en cadascun dels dos primers componenets.
+
+```{r, echo=FALSE}
+fviz_pca_ind(pca,
+             label = "none", # hide individual labels
+             habillage = df_pca_norm@elementMetadata@listData$Class, # color by groups
+             palette = c("#00AFBB", "#E7B800", "#FC4E07", "#838B8B"),
+             addEllipses = TRUE # Concentration ellipses
+             )
+```
+En aquest grafic, es pot veure com els dos primers components separen lesdades de les diferents 
 
 # DISCUSSIÓ
 
