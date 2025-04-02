@@ -24,23 +24,27 @@ library(dplyr)
 
 # ABSTRACT
 
+Aquest estufi vol identificar patrons metabòlics urinaris com a marcadors diagnòstics per al càncer gàstric (GC), comparant pacients amb GC, tumors gàstrics benignes (BN) i sans (HE). S'utilitzen dades públiques del repositori Metabolomics Workbench (Projecte PR00699), processades amb paquets de *Bioconductor* com *SummarizedExperiment* per gestionar dades i meta-dades. S'aplica un control de qualitat, eliminant metabòlics amb més del 10% de valors absents (NA) i imputant la resta mitjançant l'algoritme KNN.
+
+L'anàlisi PCA revela que els dos primers components expliquen només al voltant del 35% de la variància, amb contribucions difuses dels metabòlics, sense separar clarament els grups. Els controls de qualitat (QC) mostren agrupament coherent, validant la metodologia. La discussió assenyala possibles limitacions de les dades o la necessitat de mètodes més complexos. En conclusió, no s'identifica cap metabolit com a marcador viable de GC, suggerint revisar l'enfocament analític o ampliar les dades.
+
 # OBJECTIUS
 
-L'objectiu d'aquest treball es identificar patrons en els perfils metabolics urinaris de pacients en cancer que no siguin presents en pacients no afectat o en afectacions benignes, els quals permetin ser una èina de diagnostic rapid per a aquesta afectació.
+L'objectiu d'aquest treball es identificar patrons en els perfils metabòlics urinaris de pacients en càncer que no siguin presents en pacients no afectat o en afectacions benignes, els quals permetin ser una eina de diagnòstic ràpid per a aquesta afectació. Es vol trobar un marcador per al càncer gàstric a partir dels perfils metabòlics dels pacients.
 
 # MÈTODES
 
-Per a la elaboració del analisis exposant en aquest informe s'ha usat dades publicades com un article obert [@Chan2015]. Les dades desconvolades i anotades es troben al [Metabolomics Workbench data repository](http://www.metabolomicsworkbench.org/), sota el Project ID PR00699. Les dades es poden accedir de forma directa via el projecte a http://dx.doi.org/DOI:10.21228/M8B10B.
+Per a la elaboració del anàlisis exposant en aquest informe s'ha usat dades publicades com un article obert [@Chan2015]. Les dades desconvolades i anotades es troben al [Metabolomics Workbench data repository](http://www.metabolomicsworkbench.org/), sota el Project ID PR00699. Les dades es poden accedir de forma directa via el projecte a http://dx.doi.org/DOI:10.21228/M8B10B.
 
-Aquestes dades, estan compreses per l'estudi H1-RMN dels perfis metabòlics urinaris de diferents grups de pacients amb cancer gàstric, en especific pacients amb cancer gastric (GC), pacients amb malalties gastriques benignes (BN) i pacients no afectats (HE). 
+Aquestes dades, estan compreses per l'estudi H1-RMN dels perfils metabòlics urinaris de diferents grups de pacients amb càncer gàstric, en específic pacients amb càncer gàstric (GC), pacients amb malalties gàstriques benignes (BN) i pacients no afectats (HE). 
 
-Per a estudiar aquestes dades, s'ha usat el paquet *Bioconductor* [], del qual s'han usat els paquets *Biobase* i *SummarizedExperiment* [@MO_2024]per a la construcció d'un objecte amb la classe homonima d'aquest paquet.
+Per a estudiar aquestes dades, s'ha usat el paquet *Bioconductor* [], del qual s'han usat els paquets *Biobase* i *SummarizedExperiment* [@MO_2024]per a la construcció d'un objecte amb la classe homònima d'aquest paquet.
 
 A més a més, també s'han usat 
 
 ```{r, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 
-## instalar els paquets necessaris: BiocManager, Biobase, Summarized Experiment.
+## instal·lar els paquets necessaris: BiocManager, Biobase, Summarized Experiment.
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 setRepositories(ind=1:2)
@@ -53,12 +57,12 @@ setRepositories(ind=1:2)
 
 ## Seleccionar i descarregar el dataset
 
-El dataset que es vol usar és el que respecta al cancer gàstric, el es carrega a partir del fitxer *xlsx* disponible en el repositori GitHub del informe.
+El dataset que es vol usar és el que respecta al càncer gàstric, el qual carrega a partir del fitxer *xlsx* disponible en el repositori GitHub del informe.
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, echo=FALSE}
 library(readxl)
 
-#obtenir l'estudi en questió en forma de df a partir del fitxer xlsx
+#obtenir l'estudi en qüestió en forma de df a partir del fitxer xlsx
 raw = read_xlsx('GastricCancer_NMR.xlsx')
 ```
 
@@ -66,22 +70,22 @@ raw = read_xlsx('GastricCancer_NMR.xlsx')
 
 ## Carregar i acomular les dades
 
-Per a carregar i acomular les dades s'usa un objecte de classe *SummarizedExperiment*. Aquesta classe s'usa per a acomular matrius rectangulars de resultats experimentals, sent possible acomular resultats de diferents experiments sempre que siguin de dimensions iguals. Cadascun dels objectes acomula observacions d'una o més mostres, a més a més de la *metadata* descriptora de les observacións (*features*) i de les mostres (*fenotips*).
+Per a carregar i acumular les dades s'usa un objecte de classe *SummarizedExperiment*. Aquesta classe s'usa per a acumular matrius rectangulars de resultats experimentals, sent possible acumular resultats de diferents experiments sempre que siguin de dimensions iguals. Cadascun dels objectes acumula observacions d'una o més mostres, a més a més de la *metadata* descriptora de les observacions (*features*) i de les mostres (*fenotips*).
 
-Un aspecte clau d'aquest tipus de classes és la capacitat de mantenir lligades les dades expimentals a les metadades, el que permet realitzar transformacions a les dades experimentals, com per exemple eliminar una *feature* o normalitzar un resultat, sense perdre les metadades que van lligades a aquestes dades expeimentals. 
+Un aspecte clau d'aquest tipus de classes és la capacitat de mantenir lligades les dades experimentals a les meta-dades, el que permet realitzar transformacions a les dades experimentals, com per exemple eliminar una *feature* o normalitzar un resultat, sense perdre les meta-dades que van lligades a aquestes dades experimentals. 
 
-Aquesta classe és una extensió de la classe base de *Bioconductor* *ExpressionSet*. La principal diferencia que presenta la classe extesa sobre la original és la flexibilitat pel que respecta la formació de files, permetent la formació de files tant en elements *GRange* com sobre elements descrits per *DataFramE*s arbitraris. Això permet molta més flexibilitat en l'utilització i la fa una classe molt adecuada per a una gran varietat d'usos a la bioinformatica.
+Aquesta classe és una extensió de la classe base de *Bioconductor* *ExpressionSet*. La principal diferencia que presenta la classe extensa sobre la original és la flexibilitat pel que respecta la formació de files, permetent la formació de files tant en elements *GRange* com sobre elements descrits per *DataFrame*s arbitraris. Això permet molta més flexibilitat en la utilització i la fa una classe molt adequada per a una gran varietat d'usos a la bioinformàtica.
 
 
-```{r, message=FALSE}
-#carregar la lliberia metabolomics Workbench R i summarizedExperiment
+```{r, message=FALSE, echo=FALSE}
+#carregar la llibreria metabolomics Workbench R i summarizedExperiment
 library("metabolomicsWorkbenchR")
 library('SummarizedExperiment')
 
 #classificar les dades com a summarizedExperiment
 df <- SummarizedExperiment(assays = list(raw[,5:153]))
 
-#afegir les metadades al element summarized experiment
+#afegir les meta-dades al element summarized experiment
 rowData(df) <- data.frame(Idx = raw[,1], SampleID = raw[,2], Sampletype = raw[,3], SampleClass = raw[,4])
 ```
 
@@ -89,9 +93,9 @@ rowData(df) <- data.frame(Idx = raw[,1], SampleID = raw[,2], Sampletype = raw[,3
 
 ### Visualitzar les dades
 
-El primer pas doncs en l'analisis exploratori de les dades és visualitzar-les, per a coneixer'n la forma i les caracteristiques principals. El primer que cal visualitzar és l'element *SummarizedExperiment*, el cual pot poseir informació clau sobre les dades. 
+El primer pas doncs en l'anàlisi exploratori de les dades és visualitzar-les, per a coneixer'n la forma i les característiques principals. El primer que cal visualitzar és l'element *SummarizedExperiment*, el qual pot posseir informació clau sobre les dades. 
 
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
 
 #es visualitza la informació del Summarized Experiment
 cat('Resum del element Summarized Experiment per a les dades inicials: \n')
@@ -100,12 +104,14 @@ df
 
 En aquesta sortida de consola es pot veure que la informació numèrica del assaig es troba dins d'un assaig sense nom. Cal doncs, accedir a aquest assaig per a visualitzar-ne les dades (només les primeres entrades) i fer-ne un breu resum.
 
-```{r}
+```{r, echo=FALSE}
 #s'extreuen les dades del Summarized Experiment
 dades = assay(df)
 #es visualitza un breu resum i una breu mostra de les 5 primeres entrades de les dades
-head(dades[1:5,1:5]) %>%  kableExtra::kable()
-summary(dades[1:5]) %>%  kableExtra::kable()
+cat("")
+library(kableExtra)
+head(dades[1:5,1:5]) %>% kbl(caption = 'Taula 1: Mostra de les 5 primeres entrades i les 5 primeres files de les dades') %>% kable_classic(full_width=F)
+summary(dades[1:5]) %>% kbl(caption = 'Taula 2: Resum de les 5 primeres variables de les dades') %>% kable_classic(full_width=F)
 ```
 
 En aquestes taules es poden veure les primeres entrades de les dades i un breu resum d'aquestes.
@@ -114,22 +120,22 @@ Com es pot veure a la taula de resum, alguns dels metabolits present valors no e
 
 ### Selecció de metabolits
 
-Per a poder treballar amb metabolits que ens aportin informació, cal que el maxim nombre de variables tinguin informació disponible per al metabolit en questió. Per a assegurar-nos d'això, s'eliminen els metabolits on els valors **NA** representen més d'un 10% dels valors totals.
+Per a poder treballar amb metabolits que ens aportin informació, cal que el màxim nombre de variables tinguin informació disponible per al metabolit en qüestió. Per a assegurar-nos d'això, s'eliminen els metabolits on els valors **NA** representen més d'un 10% dels valors totals.
 
 ```{r, echo=FALSE}
-#acomular el recompte de NA a cada columna
+#acumular el recompte de NA a cada columna
 nacounts = colSums(is.na(dades))
-#calcular el percentatge que aixo representa del total
+#calcular el percentatge que això representa del total
 napercent = nacounts/nrow(dades) * 100
 
-#seleccionar les columnes que són d'interés
+#seleccionar les columnes que són d'interès
 
 df_select <- df[,napercent < 10]
 cat('Resum de les dades seleccionades: \n')
 df_select
 ```
 
-Com es pot veure a la sortida de consola on es veu el resum del nou element *SummarizedExperiment*, de les 149 variables que poseia el dataset original se'n conserven 122, sent aquestes les que els valors NA representen menys d'un 10% de les dades.
+Com es pot veure a la sortida de consola on es veu el resum del nou element *SummarizedExperiment*, de les 149 variables que posseïa el dataset original se'n conserven 122, sent aquestes les que els valors NA representen menys d'un 10% de les dades.
 
 
 ## PCA
@@ -138,27 +144,27 @@ Com es pot veure a la sortida de consola on es veu el resum del nou element *Sum
 
 Per a estudiar quins dels components tenen un efecte més clar sobre la afectació o no dels pacients, es realitza un PCA sobre les dades.
 
-Degut a que el PCA necessita totes les dades per a treballar, les dades que falten (**NA**) es generen mitjançant un algoritme predictiu KNN amb 3 veins. Això és necessari degut a que per al analisis dels components principals no poden haver-hi elements amb valors perduts. Per a aixó, s'usa el paquet *multiUS* [@Torgo_2011].
+Degut a que el PCA necessita totes les dades per a treballar, les dades que falten (**NA**) es generen mitjançant un algoritme predictiu KNN amb 3 veïns. Això és necessari degut a que per al anàlisis dels components principals no poden haver-hi elements amb valors perduts. Per a això, s'usa el paquet *multiUS* [@Torgo_2011].
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 #imprimir el nombre de NA a les dades sense imputar
 
 cat("El numero de valors NA al dataset filtrat és de: ", 
     sum(is.na(assay(df_select))))
-#carregar lliberira multiUS
+#carregar llibreria multiUS
 library(multiUS)
 
 #imputar els valors perduts amb un knn amb k = 3
 imp <- KNNimp(t(assay(df_select)), k=3)
 
-#acomules les metadades del assay primer
+#acumules les meta-dades del assay primer
 
 metadataselect <- rowData(df_select)
 
 #construir un nou summarized experiment amb la metadata i les dades imputades
 df_imp <- SummarizedExperiment(assays = list(t(imp)))
 
-#afegir les metadades al element summarized experiment
+#afegir les meta-dades al element summarized experiment
 rowData(df_imp) <- metadataselect
 
 #seleccionar les classes HE i GC
@@ -169,10 +175,10 @@ cat("\nEl numero de valors NA al dataset imputat és de: ",
 ```
 Com es pot veure a la sortida de consola, imputar el dataset permet eliminar els valors NA de les dades. Això és necessari per a realitzar el PCA.
 
-Per al PCA, també es important nomralitzar les dades, ja que el PCA és un exercici de maximització de la variança. Sense normalització, el PCA seleccionaria les variables amb mes variança interna, no aquelles que represent de veritat la variació del resutat.
+Per al PCA, també es important normalitzar les dades, ja que el PCA és un exercici de maximització de la variança. Sense normalització, el PCA seleccionaria les variables amb mes variança interna, no aquelles que representin de veritat la variació del resultat.
 
 ```{r, echo=FALSE}
-#normalitzar les dades de df_pca i acomular-les en una altra variable
+#normalitzar les dades de df_pca i acumular-les en una altra variable
 df_pca_norm <- df_pca
 assay(df_pca_norm) <- scale(assay(df_pca))
 ```
@@ -194,29 +200,54 @@ fviz_eig(pca, addlabels = TRUE)
 
 
 ```
-En el grafic *Scree* resultant del PCA es pot veure com el primer factor representa més del 25% de la variació de les dades, el que aporta informació important. Juntament amb el segon factor, aporten més del 35% de la informació.
+En el gràfic *Scree* resultant del PCA es pot veure com el primer factor representa més del 25% de la variació de les dades, el que aporta informació important. Juntament amb el segon factor, aporten més del 35% de la informació.
 
-El seguent pas es analitzar com estan organitzats aquests factors.
+El següent pas es analitzar com estan organitzats aquests factors.
 
 ```{r}
 fviz_contrib(pca, choice = "var", axes = 1, top = 10)
 fviz_contrib(pca, choice = "var", axes = 2, top = 10)
 
 ```
-En aquests dos gràfics es pot veure les 10 variables que més influeixen en cadascun dels dos primers componenets.
+En aquests dos gràfics es pot veure les 10 variables que més influeixen en cadascun dels dos primers components. Com es pot veure, per al primer component els valors màxims estan al voltant del 2%, el qual es un resultat no molt bo que indica que el component es una barreja de tots els metabolits.
+
+Per al segon, encara que el valor màxim es lleugerament més alt, s'obté un resultat similar.
 
 ```{r, echo=FALSE}
+#graficar els dataponits en dos eixos(components 1 i 2)
 fviz_pca_ind(pca,
-             label = "none", # hide individual labels
-             habillage = df_pca_norm@elementMetadata@listData$Class, # color by groups
+             label = "none",
+             habillage = df_pca_norm@elementMetadata@listData$Class,
              palette = c("#00AFBB", "#E7B800", "#FC4E07", "#838B8B"),
-             addEllipses = TRUE # Concentration ellipses
+             addEllipses = TRUE 
              )
 ```
-En aquest grafic, es pot veure com els dos primers components separen lesdades de les diferents 
+En aquest gràfic, es pot veure com els dos primers components separen les dades de les diferents classes, depenent de el nivell d'afectació de la malaltia. Cal destacar que els elements del grup QC, control de qualitat, estan molt ben agrupats respecte les mostres biològiques, el que indica que les dades són de bona qualitat [@BG_2018].
 
 # DISCUSSIÓ
 
+Els resultats obtinguts a l'anàlisi PCA de les dades no són molt bons, i indiquen que, amb les eines utilitzades, no s'ha pogut desenvolupar una mètrica a partir de les dades disponibles que es pugui usar com a indicador de càncer gàstric. 
+
+El mal resultat del PCA es pot veure en el fet de que els 2 primers components només representin una mica més del 30% de la variació, ja que d'un bon PCA s'esperarien uns primers components que expliquessin la majoria de la variació.
+
+A més a més, el fet de que els diferents metabolits tinguin contribucions similars i baixes a aquests components, indica que cap d'ells es poden considerar un bon indicador per a el càncer gàstric amb els mètodes usats.
+
+Finalment, el gràfic de dispersió dels individus en els dos primers components reflexa el mal resultat molt clarament, ja que els diferents grups no estan separats entre si i són indistingibles.
+
+Aquests mal resultats poden ser causa de varis factors. Una possibilitat és que les dades simplement no siguin prou potents per a obtenir un marcador per al càncer gàstric. 
+
+Una altra possibilitat és que el tractament de dades realitzat, principalment la imputació de les dades que no hi eren, pervertissin les dades de tal manera que sigui impossible obtenir aquest marcador desitjat.
+
+També es possible que per a obtenir la informació desitjada a partir de les dades, facin falta anàlisis i mètodes més complexos, basats en algoritmes més profunds.
+
+Per altra banda, la bona agrupació dels elements de la classe QC (control de qualitat), mostra que les dades usades són de bona qualitat, el que fins a cert punt valida la metodologia usada. 
+
 # CONCLUSIONS
 
+La metodologia usada queda valida per el bon agrupament de les dades de control de qualitat (QC) en la realització del PCA. 
+
+Ja sigui per limitacions de les dades o de la metodologia, no s'ha pogut obtenir un marcador per al càncer gàstric a partir de les dades disponibles.
+
 # REFERENCIES
+
+El repositori del informe es disponible a: https://github.com/JFillol/PEC1_omiques_JF
